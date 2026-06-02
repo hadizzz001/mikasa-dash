@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  code        String?
+  description  String?
+  price        String?
+  discount     String?
+  img          String[]
+  category     String?
+  stock        String?
+  stockEnabled Boolean? @default(true)
+  color        Json?
+  type         String
+  arrival      String   @default("no")
+  tax      String   @default("no")
+  cost         String?
+  sub          String
+  factory      String
+  views     String?
+  orders      String?
+  percentage      String?
+  sort      Int?
+    sale      String?   @default("no")
+      noprice      String?   @default("no")
+  specs     Json?
+}
+
+model Category {
+  id   String   @id @default(auto()) @map("_id") @db.ObjectId
+  name String   @unique
+  img  String[]
+  sort      Int?
+}
+
+model Sub {
+  id   String   @id @default(auto()) @map("_id") @db.ObjectId
+  name String   @unique 
+  sort      Int?
+}
+
+model Factory {
+  id   String   @id @default(auto()) @map("_id") @db.ObjectId
+  name String   @unique
+  img  String[]
+  sort      Int?
+}
+
+model Offer {
+  id   String @id @default(auto()) @map("_id") @db.ObjectId
+  code String
+  per  Int
+}
+
+model Order {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  oid         Int     @unique
+  userInfo    Json
+  cartItems   Json
+  total       String
+  delivery    String
+  code        String?
+  paid        Boolean @default(false)
+  num         String?
+  remark      String?
+  fulfillment Boolean @default(false)
+  date        String
+  delete      Boolean @default(false)
+}
+
+model Review {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String
+  date        DateTime @default(now()) @db.Date
+}
+
+model Banner {
+  id  String   @id @default(auto()) @map("_id") @db.ObjectId
+  img String[] 
+  imgMobile String[]
+  imgPc String[]
+}
+
+
+model Banner1 {
+  id  String   @id @default(auto()) @map("_id") @db.ObjectId 
+  img String[] 
+  imgMobile String[]
+  imgPc String[]
+}
+
+model Banner2 {
+  id  String   @id @default(auto()) @map("_id") @db.ObjectId 
+  img String[]
+  imgMobile String[]
+  imgPc String[]
+}
+
+model OfferText {
+  id   String @id @default(auto()) @map("_id") @db.ObjectId
+  text String
+}
+
+model Color {
+  id   String   @id @default(auto()) @map("_id") @db.ObjectId
+  name String   @unique
+  code String
+  img  String[]
+  sort Int?
+}
+
+model Size {
+  id   String @id @default(auto()) @map("_id") @db.ObjectId
+  name String @unique
+  sort Int?
+}
+
