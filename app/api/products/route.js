@@ -16,7 +16,6 @@ export async function POST(req) {
       stockEnabled,
       arrival,
       type,
-      sub,
       factory,
       views,
       orders,
@@ -26,6 +25,7 @@ export async function POST(req) {
       percentage,
       tax,
       color,
+      collectionMode,
       specs,
     } = body;
 
@@ -46,7 +46,6 @@ export async function POST(req) {
         stockEnabled: stockEnabled ?? stock != null,
         arrival,
         type,
-        sub,
         factory,
         views,
         orders,
@@ -56,6 +55,7 @@ export async function POST(req) {
         percentage,
         tax,
         color,
+        collectionMode: type === 'collection' ? (collectionMode || 'sizeColor') : null,
         specs,
       },
     });

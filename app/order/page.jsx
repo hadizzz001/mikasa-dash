@@ -81,6 +81,20 @@ const page = () => {
     return getDiscountedValue(item.price, item.percentage, item.discount);
   };
 
+  // Determine how a product's variants are structured
+  const getCollectionMode = (product) => {
+    if (!product || product.type !== 'collection') return 'single';
+    if (product.collectionMode) return product.collectionMode;
+    // Fallback inference for legacy products saved before collectionMode existed
+    const variants = Array.isArray(product.color) ? product.color : [];
+    const anyColor = variants.some((v) => v?.color);
+    const anySize = variants.some((v) => Array.isArray(v?.sizes) && v.sizes.some((s) => s?.size));
+    if (anyColor && anySize) return 'sizeColor';
+    if (anyColor) return 'colorOnly';
+    if (anySize) return 'sizeOnly';
+    return 'sizeColor';
+  };
+
 
 
 
@@ -159,21 +173,24 @@ const page = () => {
     if (!selectedProduct || qty < 1) return;
 
     const id = selectedProduct.id || selectedProduct._id;
+    const mode = getCollectionMode(selectedProduct);
     const variants = Array.isArray(selectedProduct.color) ? selectedProduct.color : [];
     const hasStockTracking = selectedProduct.stockEnabled ?? (selectedProduct.type === "collection" ? variants.length > 0 : selectedProduct.stock != null);
-    const selectedColorObj = variants.find(c => c.color === selectedColor);
-    const hasColorVariants = selectedProduct.type === "collection" && variants.length > 0;
-    const hasSizeVariants = Array.isArray(selectedColorObj?.sizes) && selectedColorObj.sizes.length > 0;
 
-    if (hasColorVariants && !selectedColor) {
-      alert("Please select a color.");
-      return;
+    // --- Validate the required selections for this collection mode ---
+    if (mode === 'sizeColor') {
+      if (!selectedColor) { alert("Please select a color."); return; }
+      if (!selectedSize) { alert("Please select a size."); return; }
+    } else if (mode === 'colorOnly') {
+      if (!selectedColor) { alert("Please select a color."); return; }
+    } else if (mode === 'sizeOnly') {
+      if (!selectedSize) { alert("Please select a size."); return; }
     }
 
-    if (hasSizeVariants && !selectedSize) {
-      alert("Please select a size.");
-      return;
-    }
+    // size-only: the lone variant has an empty color name.
+    // color-only: the variant's single size row has an empty size name.
+    const colorToSend = mode === 'sizeOnly' ? (variants[0]?.color ?? '') : selectedColor;
+    const sizeToSend = mode === 'colorOnly' ? '' : selectedSize;
 
     if (hasStockTracking) {
       let stockUrl = '';
@@ -182,12 +199,10 @@ const page = () => {
       if (selectedProduct.type === "single") {
         stockUrl = `/api/stock`;
         body = `${id},${qty}`;
-      } else if (hasSizeVariants) {
-        stockUrl = `/api/stock2`;
-        body = `${id},${selectedColor},${selectedSize},${qty}`;
       } else {
-        stockUrl = `/api/stock1`;
-        body = `${id},${selectedColor},${qty}`;
+        // Every collection mode stores qty inside color[].sizes[] => deduct via stock2
+        stockUrl = `/api/stock2`;
+        body = `${id},${colorToSend},${sizeToSend},${qty}`;
       }
 
       try {
@@ -214,8 +229,8 @@ const page = () => {
     const newItem = {
       ...selectedProduct, // spread the product properties
       quantity: qty,
-      selectedColor,
-      selectedSize,
+      selectedColor: colorToSend,
+      selectedSize: sizeToSend,
     };
 
 
@@ -292,19 +307,47 @@ const page = () => {
     setSelectedProduct(product);
     setSelectedColor('');
     setSelectedSize('');
-    setAvailableColors(Array.isArray(product.color) ? product.color.map(c => c.color).filter(Boolean) : []);
-    setAvailableSizes([]);
+
+    const mode = getCollectionMode(product);
+    const variants = Array.isArray(product.color) ? product.color : [];
+    const trackStock = product.stockEnabled !== false;
+
+    if (mode === 'sizeOnly') {
+      // single variant (empty color) carries the sizes
+      const sizes = variants[0]?.sizes || [];
+      const usable = trackStock ? sizes.filter((s) => Number(s?.qty) > 0) : sizes;
+      setAvailableColors([]);
+      setAvailableSizes(usable.map((s) => s.size).filter(Boolean));
+    } else if (mode === 'colorOnly') {
+      const usable = trackStock
+        ? variants.filter((v) => Number(v?.sizes?.[0]?.qty) > 0)
+        : variants;
+      setAvailableColors(usable.map((c) => c.color).filter(Boolean));
+      setAvailableSizes([]);
+    } else if (mode === 'sizeColor') {
+      const usable = trackStock
+        ? variants.filter((v) => Array.isArray(v?.sizes) && v.sizes.some((s) => Number(s?.qty) > 0))
+        : variants;
+      setAvailableColors(usable.map((c) => c.color).filter(Boolean));
+      setAvailableSizes([]);
+    } else {
+      // single product
+      setAvailableColors([]);
+      setAvailableSizes([]);
+    }
   };
 
   const handleColorChange = (color) => {
     setSelectedColor(color);
-    const colorObj = selectedProduct.color.find(c => c.color === color);
+    setSelectedSize('');
+    const colorObj = (selectedProduct?.color || []).find((c) => c.color === color);
+    const trackStock = selectedProduct?.stockEnabled !== false;
 
     if (colorObj?.sizes) {
-      const sizes = selectedProduct.stockEnabled === false
-        ? colorObj.sizes
-        : colorObj.sizes.filter(s => Number(s?.qty) > 0);
-      setAvailableSizes(sizes.map(s => s.size).filter(Boolean));
+      const usable = trackStock
+        ? colorObj.sizes.filter((s) => Number(s?.qty) > 0)
+        : colorObj.sizes;
+      setAvailableSizes(usable.map((s) => s.size).filter(Boolean));
     } else {
       setAvailableSizes([]);
     }

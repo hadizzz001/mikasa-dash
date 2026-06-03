@@ -368,9 +368,10 @@ function EditProductForm({ product, onCancel, onSave }) {
   const [img, setImg] = useState(product.img || []);
   const [sale, setSale] = useState(product.sale === "yes");
   const [noPrice, setNoPrice] = useState(product.noprice === "yes");
-  const [includeTax, setIncludeTax] = useState(product.tax === "yes");
+  const [includeTax] = useState(product.tax === "yes");
   const [stockEnabled, setStockEnabled] = useState(product.stockEnabled ?? product.stock != null);
   const [productType, setProductType] = useState(product.type === 'collection' ? 'collection' : 'single');
+  const [collectionMode, setCollectionMode] = useState(product.collectionMode || 'sizeColor');
 
   // Single product fields
   const [singlePrice, setSinglePrice] = useState(product.type !== 'collection' ? (product.price || '') : '');
@@ -378,8 +379,6 @@ function EditProductForm({ product, onCancel, onSave }) {
   const [singleStock, setSingleStock] = useState(product.type !== 'collection' ? (product.stock || '') : '');
 
   // Dropdowns
-  const [subcategories, setSubcategories] = useState([]);
-  const [selectedSub, setSelectedSub] = useState(product.sub || '');
   const [factories, setFactories] = useState([]);
   const [selectedFactory, setSelectedFactory] = useState(product.factory || '');
 
@@ -428,6 +427,23 @@ function EditProductForm({ product, onCancel, onSave }) {
   // --- Variant Helpers ---
   const addColor = () => setVariants([...variants, { color: '', colorCode: '', sizes: [{ size: '', qty: '', price: '', percentage: '', discount: '' }] }]);
   const removeColor = (i) => setVariants(variants.filter((_, idx) => idx !== i));
+  const changeCollectionMode = (mode) => {
+    setCollectionMode(mode);
+    setVariants(prev => {
+      if (mode === 'sizeOnly') {
+        const base = prev[0] || { color: '', colorCode: '', sizes: [] };
+        return [{
+          ...base,
+          color: '', colorCode: '',
+          sizes: base.sizes && base.sizes.length ? base.sizes : [{ size: '', qty: '', price: '', percentage: '', discount: '' }],
+        }];
+      }
+      if (mode === 'colorOnly') {
+        return prev.map(v => ({ ...v, sizes: [v.sizes?.[0] || { size: '', qty: '', price: '', percentage: '', discount: '' }] }));
+      }
+      return prev.length ? prev : [{ color: '', colorCode: '', sizes: [{ size: '', qty: '', price: '', percentage: '', discount: '' }] }];
+    });
+  };
   const selectColor = (i, name) => {
     if (variants.some((v, idx) => idx !== i && v.color === name)) { alert(`Color "${name}" is already added.`); return; }
     const u = [...variants]; const db = dbColors.find(c => c.name === name);
@@ -463,7 +479,6 @@ function EditProductForm({ product, onCancel, onSave }) {
 
   // Fetch dropdown data
   useEffect(() => {
-    fetch('/api/sub').then(r => r.json()).then(setSubcategories).catch(console.error);
     fetch('/api/factory').then(r => r.json()).then(setFactories).catch(console.error);
     fetch('/api/color').then(r => r.json()).then(setDbColors).catch(console.error);
     fetch('/api/size').then(r => r.json()).then(setDbSizes).catch(console.error);
@@ -475,14 +490,32 @@ function EditProductForm({ product, onCancel, onSave }) {
     let computedPrice, computedStock, computedDiscount = null, colorData = null, percentageVal = null;
 
     if (productType === 'collection') {
-      for (let i = 0; i < variants.length; i++) {
-        const v = variants[i];
-        if (!v.color?.trim()) { alert(`Please select a color for variant #${i + 1}`); return; }
+      if (collectionMode === 'sizeOnly') {
+        const v = variants[0];
         for (let j = 0; j < v.sizes.length; j++) {
           const sz = v.sizes[j];
-          if (!sz.size?.trim()) { alert(`Please select a size for color "${v.color}", row #${j + 1}`); return; }
-          if (stockEnabled && (!sz.qty || Number(sz.qty) < 0)) { alert(`Invalid qty for "${v.color}" / "${sz.size}"`); return; }
-          if (!noPrice && (!sz.price || Number(sz.price) <= 0)) { alert(`Invalid price for "${v.color}" / "${sz.size}"`); return; }
+          if (!sz.size?.trim()) { alert(`Please select a size for row #${j + 1}`); return; }
+          if (stockEnabled && (!sz.qty || Number(sz.qty) < 0)) { alert(`Invalid qty for size "${sz.size}"`); return; }
+          if (!noPrice && (!sz.price || Number(sz.price) <= 0)) { alert(`Invalid price for size "${sz.size}"`); return; }
+        }
+      } else if (collectionMode === 'colorOnly') {
+        for (let i = 0; i < variants.length; i++) {
+          const v = variants[i];
+          if (!v.color?.trim()) { alert(`Please select a color for variant #${i + 1}`); return; }
+          const sz = v.sizes[0];
+          if (stockEnabled && (!sz.qty || Number(sz.qty) < 0)) { alert(`Invalid qty for color "${v.color}"`); return; }
+          if (!noPrice && (!sz.price || Number(sz.price) <= 0)) { alert(`Invalid price for color "${v.color}"`); return; }
+        }
+      } else {
+        for (let i = 0; i < variants.length; i++) {
+          const v = variants[i];
+          if (!v.color?.trim()) { alert(`Please select a color for variant #${i + 1}`); return; }
+          for (let j = 0; j < v.sizes.length; j++) {
+            const sz = v.sizes[j];
+            if (!sz.size?.trim()) { alert(`Please select a size for color "${v.color}", row #${j + 1}`); return; }
+            if (stockEnabled && (!sz.qty || Number(sz.qty) < 0)) { alert(`Invalid qty for "${v.color}" / "${sz.size}"`); return; }
+            if (!noPrice && (!sz.price || Number(sz.price) <= 0)) { alert(`Invalid price for "${v.color}" / "${sz.size}"`); return; }
+          }
         }
       }
       computedPrice = minPrice || '0';
@@ -516,12 +549,12 @@ function EditProductForm({ product, onCancel, onSave }) {
       discount: computedDiscount,
       percentage: percentageVal,
       img,
-      sub: selectedSub,
       factory: selectedFactory,
       type: productType,
       stock: computedStock,
       stockEnabled,
       color: colorData,
+      collectionMode: productType === 'collection' ? collectionMode : null,
       specs: specs.length > 0 ? specs : null,
     });
   };
@@ -542,17 +575,11 @@ function EditProductForm({ product, onCancel, onSave }) {
         <input type="text" value={code} onChange={(e) => setCode(e.target.value)} className="w-full border p-2" required />
       </div>
 
-      {/* Category & Sub-Category */}
+      {/* Category */}
       <label className="block text-sm font-bold mb-1">Category</label>
-      <select className="w-full p-2 border mb-2" value={selectedFactory} onChange={(e) => setSelectedFactory(e.target.value)} required>
+      <select className="w-full p-2 border mb-4" value={selectedFactory} onChange={(e) => setSelectedFactory(e.target.value)} required>
         <option value="" disabled>Select Category</option>
         {factories.map((cat) => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
-      </select>
-
-      <label className="block text-sm font-bold mb-1">Sub-Category</label>
-      <select className="w-full p-2 border mb-4" value={selectedSub} onChange={(e) => setSelectedSub(e.target.value)} required>
-        <option value="" disabled>Select Sub-Category</option>
-        {subcategories.map((cat) => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
       </select>
 
       {/* Checkboxes */}
@@ -564,10 +591,6 @@ function EditProductForm({ product, onCancel, onSave }) {
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={noPrice} onChange={(e) => setNoPrice(e.target.checked)} />
           <span>No Price</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={includeTax} onChange={(e) => setIncludeTax(e.target.checked)} />
-          <span>Include Tax</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={stockEnabled} onChange={(e) => setStockEnabled(e.target.checked)} />
@@ -589,6 +612,25 @@ function EditProductForm({ product, onCancel, onSave }) {
           </label>
         </div>
       </div>
+
+      {/* Collection Type */}
+      {productType === 'collection' && (
+        <div className="mb-4">
+          <label className="block text-sm font-bold mb-2">Collection Type</label>
+          <div className="flex flex-col sm:flex-row gap-3">
+            {[
+              { key: 'sizeColor', label: 'Size & Color', desc: 'Colors, each with sizes' },
+              { key: 'sizeOnly', label: 'Size Only', desc: 'Sizes, no colors' },
+              { key: 'colorOnly', label: 'Color Only', desc: 'Colors, no sizes' },
+            ].map((m) => (
+              <label key={m.key} className={`flex items-center gap-2 cursor-pointer border rounded-lg px-4 py-3 flex-1 ${collectionMode === m.key ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}>
+                <input type="radio" name="editCollectionMode" value={m.key} checked={collectionMode === m.key} onChange={() => changeCollectionMode(m.key)} />
+                <div><span className="font-semibold">{m.label}</span><p className="text-xs text-gray-500">{m.desc}</p></div>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ===== SINGLE PRICE/STOCK ===== */}
       {productType === 'single' && (
@@ -622,12 +664,17 @@ function EditProductForm({ product, onCancel, onSave }) {
       {productType === 'collection' && (
         <div className="border rounded-lg p-4 mb-4 bg-white">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold">Colors &amp; Sizes</h2>
-            <button type="button" onClick={addColor} className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">+ Add Color</button>
+            <h2 className="text-sm font-bold">
+              {collectionMode === 'sizeOnly' ? 'Sizes' : collectionMode === 'colorOnly' ? 'Colors' : 'Colors & Sizes'}
+            </h2>
+            {collectionMode !== 'sizeOnly' && (
+              <button type="button" onClick={addColor} className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">+ Add Color</button>
+            )}
           </div>
 
           {variants.map((variant, colorIdx) => (
             <div key={colorIdx} className="border rounded-lg p-3 mb-3 bg-gray-50">
+              {collectionMode !== 'sizeOnly' && (
               <div className="flex items-center gap-2 mb-3">
                 {variant.colorCode && (
                   <div style={{ backgroundColor: variant.colorCode }} className="w-8 h-8 rounded-full border border-gray-300 flex-shrink-0" />
@@ -642,7 +689,37 @@ function EditProductForm({ product, onCancel, onSave }) {
                   <button type="button" onClick={() => removeColor(colorIdx)} className="bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600">✕</button>
                 )}
               </div>
+              )}
 
+              {collectionMode === 'colorOnly' && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {stockEnabled && (
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Qty</label>
+                      <input type="number" min="0" placeholder="Qty" value={variant.sizes[0]?.qty || ''} onChange={(e) => updateSize(colorIdx, 0, 'qty', e.target.value)} className="border p-1.5 rounded w-full" required />
+                    </div>
+                  )}
+                  {!noPrice && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Price</label>
+                        <input type="number" step="0.01" min="0" placeholder="Price" value={variant.sizes[0]?.price || ''} onChange={(e) => updateSize(colorIdx, 0, 'price', e.target.value)} className="border p-1.5 rounded w-full" required />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Disc %</label>
+                        <input type="number" step="0.01" min="0" max="100" placeholder="%" value={variant.sizes[0]?.percentage || ''} onChange={(e) => updateSize(colorIdx, 0, 'percentage', e.target.value)} className="border p-1.5 rounded w-full" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Final</label>
+                        <input type="text" readOnly value={getDiscountedPrice(variant.sizes[0]) || (variant.sizes[0]?.price ? Number(variant.sizes[0].price).toFixed(2) : '')} placeholder="—" className="border p-1.5 rounded w-full bg-gray-100 text-green-700 font-semibold" />
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {(collectionMode === 'sizeColor' || collectionMode === 'sizeOnly') && (
+              <>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -693,6 +770,8 @@ function EditProductForm({ product, onCancel, onSave }) {
                 </table>
               </div>
               <button type="button" onClick={() => addSize(colorIdx)} className="mt-2 text-blue-500 hover:text-blue-700 text-sm font-medium">+ Add Size</button>
+              </>
+              )}
             </div>
           ))}
 

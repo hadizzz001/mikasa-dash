@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Upload from '../components/Upload';
 
 const ManageBanner = () => {
-  const [imgMobile, setImgMobile] = useState([]);
   const [imgPc, setImgPc] = useState([]);
   const [message, setMessage] = useState('');
 
@@ -34,10 +33,6 @@ const ManageBanner = () => {
   }, []);
 
   // Handle image changes
-  const handleMobileImgChange = (url) => {
-    if (url) setImgMobile(url);
-  };
-
   const handlePcImgChange = (url) => {
     if (url) setImgPc(url);
   };
@@ -50,7 +45,7 @@ const ManageBanner = () => {
       const res = await fetch(`/api/banner?id=${bannerId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ img: [], imgMobile, imgPc }),
+        body: JSON.stringify({ img: [], imgPc }),
       });
 
       if (res.ok) {
@@ -83,13 +78,6 @@ const ManageBanner = () => {
       <h1 className="text-2xl font-bold mb-6">Update Banner</h1>
 
       <form onSubmit={handleEditSubmit} className="space-y-8">
-        {/* Mobile Upload */}
-        <div className="border rounded-lg p-4 bg-gray-50">
-          <h2 className="text-lg font-semibold mb-1">📱 Mobile Banner</h2>
-          <p className="text-sm text-gray-500 mb-3">Recommended size: 400 × 800 px</p>
-          <Upload onFilesUpload={handleMobileImgChange} />
-        </div>
-
         {/* PC Upload */}
         <div className="border rounded-lg p-4 bg-gray-50">
           <h2 className="text-lg font-semibold mb-1">🖥️ PC Banner</h2>
@@ -107,16 +95,6 @@ const ManageBanner = () => {
       {banner && (
         <div className="mt-8 space-y-6">
           <h2 className="text-xl font-bold mb-2">Current Banners</h2>
-
-          {/* Current Mobile Banner */}
-          <div>
-            <h3 className="font-semibold mb-1">📱 Mobile Banner</h3>
-            {banner.imgMobile && banner.imgMobile.length > 0 ? (
-              renderMedia(banner.imgMobile[0], 'Mobile Banner', 'w-32 h-auto border')
-            ) : (
-              <p className="text-gray-400 text-sm">No mobile banner uploaded.</p>
-            )}
-          </div>
 
           {/* Current PC Banner */}
           <div>

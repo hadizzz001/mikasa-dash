@@ -44,53 +44,66 @@ export default function Sidebar() {
                 Add Category
               </a>
             </li>     */}
-                        <li>
+            <li>
               <a href="/factory" style={{ color: "white", textDecoration: "none" }}>
                 Add Category
               </a>
-            </li> 
-            <li>
-              <a href="/sub" style={{ color: "white", textDecoration: "none" }}>
-                Add Sub-category
-              </a>
-            </li>    
+            </li>
             <li>
               <a href="/color" style={{ color: "white", textDecoration: "none" }}>
                 Add Colors
               </a>
-            </li>    
+            </li>
             <li>
               <a href="/size" style={{ color: "white", textDecoration: "none" }}>
                 Add Sizes
               </a>
-            </li>    
-   
+            </li>
+
             <li>
               <a href="/banner" style={{ color: "white", textDecoration: "none" }}>
                 Edit Banner
               </a>
-            </li>    
+            </li>
             <li>
               <a href="/banner1" style={{ color: "white", textDecoration: "none" }}>
-                Edit Banner 2
+                Edit Quote Banner
               </a>
-            </li>    
-   
+            </li>
+
+            <li>
+              <a href="/salesbanner" style={{ color: "white", textDecoration: "none" }}>
+                Edit Sales Banner
+              </a>
+            </li>
+
+            <li>
+              <a href="/other-banners" style={{ color: "white", textDecoration: "none" }}>
+                Other Banners
+              </a>
+            </li>
+
+            <li>
+              <a href="/sections" style={{ color: "white", textDecoration: "none" }}>
+                4 Sections
+              </a>
+            </li>
+
             <li>
               <a href="/offer" style={{ color: "white", textDecoration: "none" }}>
                 Add Code
               </a>
-            </li>  
+            </li>
             <li>
               <a href="/offer-text" style={{ color: "white", textDecoration: "none" }}>
                 Offer Text
               </a>
-            </li>  
+            </li>
             <li>
               <a href="/reservation" style={{ color: "white", textDecoration: "none" }}>
                 Orders
               </a>
-            </li>  
+            </li>
             {/* <li>
               <a href="/note" style={{ color: "white", textDecoration: "none" }}>
                 Notification
@@ -128,10 +141,10 @@ export default function Sidebar() {
       {/* Spacer to push content */}
       <div style={{ marginLeft: isOpen ? "200px" : "0", transition: "margin-left 0.3s ease-in-out" }} />
       <style
-  dangerouslySetInnerHTML={{
-    __html: "\n  a {\n    color: #fff !important;\n}\n"
-  }}
-/>
+        dangerouslySetInnerHTML={{
+          __html: "\n  a {\n    color: #fff !important;\n}\n"
+        }}
+      />
 
     </div>
   );

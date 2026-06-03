@@ -92,15 +92,14 @@ export default function AddProduct() {
   const [img, setImg] = useState(['']);
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [subcategoryOptions, setSubCategoryOptions] = useState([]);
-  const [selectedsubCategory, setSelectedsubCategory] = useState('');
   const [factoryOptions, setFactoryOptions] = useState([]);
   const [selectedFactory, setSelectedFactory] = useState('');
   const [code, setCode] = useState('');
   const [sale, setSale] = useState(false);
+  const [arrival, setArrival] = useState(false);
   const [noPrice, setNoPrice] = useState(false);
-  const [includeTax, setIncludeTax] = useState(false);
   const [productType, setProductType] = useState<'single' | 'collection'>('single');
+  const [collectionMode, setCollectionMode] = useState<'sizeColor' | 'sizeOnly' | 'colorOnly'>('sizeColor');
   const [singlePrice, setSinglePrice] = useState('');
   const [singleDiscount, setSingleDiscount] = useState('');
   const [singleStock, setSingleStock] = useState('');
@@ -157,6 +156,33 @@ export default function AddProduct() {
 
   const removeColor = (colorIdx: number) => {
     setVariants(variants.filter((_, i) => i !== colorIdx));
+  };
+
+  // Switch between collection modes (sizeColor | sizeOnly | colorOnly)
+  const changeCollectionMode = (mode: 'sizeColor' | 'sizeOnly' | 'colorOnly') => {
+    setCollectionMode(mode);
+    setVariants(prev => {
+      if (mode === 'sizeOnly') {
+        const base = prev[0] || { color: '', colorCode: '', colorImg: '', images: [], sizes: [] };
+        return [{
+          color: '', colorCode: '', colorImg: '',
+          images: base.images || [],
+          sizes: base.sizes && base.sizes.length
+            ? base.sizes
+            : [{ size: '', qty: '', price: '', percentage: '', discount: '' }],
+        }];
+      }
+      if (mode === 'colorOnly') {
+        return prev.map(v => ({
+          ...v,
+          sizes: [v.sizes?.[0] || { size: '', qty: '', price: '', percentage: '', discount: '' }],
+        }));
+      }
+      // sizeColor
+      return prev.length
+        ? prev
+        : [{ color: '', colorCode: '', colorImg: '', images: [], sizes: [{ size: '', qty: '', price: '', percentage: '', discount: '' }] }];
+    });
   };
 
   const selectColor = (colorIdx: number, colorName: string) => {
@@ -320,24 +346,6 @@ export default function AddProduct() {
   useEffect(() => {
     async function fetchCategories() {
       try {
-        const response = await fetch(`/api/sub`);
-        if (response.ok) {
-          const data = await response.json();
-          setSubCategoryOptions(data);
-          setSelectedsubCategory('');
-        } else {
-          console.error('Failed to fetch categories');
-        }
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      }
-    }
-    fetchCategories();
-  }, []);
-
-  useEffect(() => {
-    async function fetchCategories() {
-      try {
         const response = await fetch(`/api/factory`);
         if (response.ok) {
           const data = await response.json();
@@ -393,25 +401,61 @@ export default function AddProduct() {
 
     // Validate variants only for collection type
     if (productType === 'collection') {
-      for (let i = 0; i < variants.length; i++) {
-        const v = variants[i];
-        if (!v.color.trim()) {
-          alert(`Please enter a color name for variant #${i + 1}`);
-          return;
-        }
+      if (collectionMode === 'sizeOnly') {
+        const v = variants[0];
         for (let j = 0; j < v.sizes.length; j++) {
           const sz = v.sizes[j];
           if (!sz.size.trim()) {
-            alert(`Please enter a size name for color "${v.color}", row #${j + 1}`);
+            alert(`Please select a size for row #${j + 1}`);
             return;
           }
           if (stockEnabled && (!sz.qty || Number(sz.qty) < 0)) {
-            alert(`Please enter a valid qty for color "${v.color}", size "${sz.size}"`);
+            alert(`Please enter a valid qty for size "${sz.size}"`);
             return;
           }
           if (!noPrice && (!sz.price || Number(sz.price) <= 0)) {
-            alert(`Please enter a valid price for color "${v.color}", size "${sz.size}"`);
+            alert(`Please enter a valid price for size "${sz.size}"`);
             return;
+          }
+        }
+      } else if (collectionMode === 'colorOnly') {
+        for (let i = 0; i < variants.length; i++) {
+          const v = variants[i];
+          if (!v.color.trim()) {
+            alert(`Please select a color for variant #${i + 1}`);
+            return;
+          }
+          const sz = v.sizes[0];
+          if (stockEnabled && (!sz.qty || Number(sz.qty) < 0)) {
+            alert(`Please enter a valid qty for color "${v.color}"`);
+            return;
+          }
+          if (!noPrice && (!sz.price || Number(sz.price) <= 0)) {
+            alert(`Please enter a valid price for color "${v.color}"`);
+            return;
+          }
+        }
+      } else {
+        for (let i = 0; i < variants.length; i++) {
+          const v = variants[i];
+          if (!v.color.trim()) {
+            alert(`Please enter a color name for variant #${i + 1}`);
+            return;
+          }
+          for (let j = 0; j < v.sizes.length; j++) {
+            const sz = v.sizes[j];
+            if (!sz.size.trim()) {
+              alert(`Please enter a size name for color "${v.color}", row #${j + 1}`);
+              return;
+            }
+            if (stockEnabled && (!sz.qty || Number(sz.qty) < 0)) {
+              alert(`Please enter a valid qty for color "${v.color}", size "${sz.size}"`);
+              return;
+            }
+            if (!noPrice && (!sz.price || Number(sz.price) <= 0)) {
+              alert(`Please enter a valid price for color "${v.color}", size "${sz.size}"`);
+              return;
+            }
           }
         }
       }
@@ -446,8 +490,9 @@ export default function AddProduct() {
       code,
       description,
       sale: sale ? "yes" : "no",
+      arrival: arrival ? "yes" : "no",
       noprice: noPrice ? "yes" : "no",
-      tax: includeTax ? "yes" : "no",
+      tax: "no",
       price: computedPrice,
       discount: computedDiscount,
       percentage:
@@ -461,12 +506,12 @@ export default function AddProduct() {
               return minP === maxP ? String(minP) : `${minP}-${maxP}`;
             })(),
       img: productImages,
-      sub: selectedsubCategory,
       factory: selectedFactory,
       type: productType,
       stock: computedStock,
       stockEnabled,
       color: colorData,
+      collectionMode: productType === 'collection' ? collectionMode : null,
       specs: specs.length > 0 ? specs : null,
     };
 
@@ -538,33 +583,18 @@ export default function AddProduct() {
         ))}
       </select>
 
-      <label className="block text-lg font-bold mb-2">Sub-Category</label>
-      <select
-        value={selectedsubCategory}
-        onChange={(e) => setSelectedsubCategory(e.target.value)}
-        className="w-full border p-2 mb-4"
-        required
-      >
-        <option value="" disabled>Select a Sub-Category</option>
-        {subcategoryOptions.map((category) => (
-          <option key={category.id} value={category.name}>
-            {category.name}
-          </option>
-        ))}
-      </select>
-
       <div className="flex gap-6 my-4">
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={sale} onChange={(e) => setSale(e.target.checked)} />
-          <span>Sale</span>
+          <span>Best Seller</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={arrival} onChange={(e) => setArrival(e.target.checked)} />
+          <span>New Arrival</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={noPrice} onChange={(e) => setNoPrice(e.target.checked)} />
           <span>No Price</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={includeTax} onChange={(e) => setIncludeTax(e.target.checked)} />
-          <span>Include Tax</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={stockEnabled} onChange={(e) => setStockEnabled(e.target.checked)} />
@@ -604,6 +634,37 @@ export default function AddProduct() {
           </label>
         </div>
       </div>
+
+      {/* ===== COLLECTION TYPE SELECTOR ===== */}
+      {productType === 'collection' && (
+        <div className="mb-4">
+          <label className="block text-lg font-bold mb-2">Collection Type</label>
+          <div className="flex flex-col sm:flex-row gap-3">
+            {[
+              { key: 'sizeColor', label: 'Size & Color', desc: 'Colors, each with sizes' },
+              { key: 'sizeOnly', label: 'Size Only', desc: 'Sizes, no colors' },
+              { key: 'colorOnly', label: 'Color Only', desc: 'Colors, no sizes' },
+            ].map((m) => (
+              <label
+                key={m.key}
+                className={`flex items-center gap-2 cursor-pointer border rounded-lg px-4 py-3 flex-1 ${collectionMode === m.key ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
+              >
+                <input
+                  type="radio"
+                  name="collectionMode"
+                  value={m.key}
+                  checked={collectionMode === m.key}
+                  onChange={() => changeCollectionMode(m.key as 'sizeColor' | 'sizeOnly' | 'colorOnly')}
+                />
+                <div>
+                  <span className="font-semibold">{m.label}</span>
+                  <p className="text-xs text-gray-500">{m.desc}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ===== SINGLE PRODUCT PRICE/STOCK ===== */}
       {productType === 'single' && (
@@ -664,19 +725,24 @@ export default function AddProduct() {
       {productType === 'collection' && (
       <div className="border rounded-lg p-4 mb-4 bg-gray-50">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold">Colors &amp; Sizes</h2>
-          <button
-            type="button"
-            onClick={addColor}
-            className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
-          >
-            + Add Color
-          </button>
+          <h2 className="text-lg font-bold">
+            {collectionMode === 'sizeOnly' ? 'Sizes' : collectionMode === 'colorOnly' ? 'Colors' : 'Colors & Sizes'}
+          </h2>
+          {collectionMode !== 'sizeOnly' && (
+            <button
+              type="button"
+              onClick={addColor}
+              className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+            >
+              + Add Color
+            </button>
+          )}
         </div>
 
         {variants.map((variant, colorIdx) => (
           <div key={colorIdx} className="border rounded-lg p-3 mb-3 bg-white">
             {/* Color Header */}
+            {collectionMode !== 'sizeOnly' && (
             <div className="flex items-center gap-2 mb-3">
               {variant.colorImg ? (
                 <img
@@ -713,10 +779,11 @@ export default function AddProduct() {
                 </button>
               )}
             </div>
+            )}
 
             {/* Product Images for this color */}
             <div className="mb-3">
-              <label className="block text-sm font-medium mb-1">📷 Product Images for this color (max 12)</label>
+              <label className="block text-sm font-medium mb-1">📷 {collectionMode === 'sizeOnly' ? 'Product Images' : 'Product Images for this color'} (max 12)</label>
               <input
                 type="file"
                 multiple
@@ -743,6 +810,7 @@ export default function AddProduct() {
             </div>
 
             {/* Optional custom color swatch image override */}
+            {collectionMode !== 'sizeOnly' && (
             <div className="mb-3">
               <label className="block text-sm font-medium mb-1">🎨 Custom Color Image (optional override)</label>
               <div className="flex items-center gap-3">
@@ -764,8 +832,71 @@ export default function AddProduct() {
                 />
               </div>
             </div>
+            )}
+
+            {/* COLOR ONLY: single price / qty for this color */}
+            {collectionMode === 'colorOnly' && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                {stockEnabled && (
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Qty</label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Qty"
+                      value={variant.sizes[0]?.qty || ''}
+                      onChange={(e) => updateSize(colorIdx, 0, 'qty', e.target.value)}
+                      className="border p-1.5 rounded w-full"
+                      required
+                    />
+                  </div>
+                )}
+                {!noPrice && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Price</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Price"
+                        value={variant.sizes[0]?.price || ''}
+                        onChange={(e) => updateSize(colorIdx, 0, 'price', e.target.value)}
+                        className="border p-1.5 rounded w-full"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Discount %</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="Optional"
+                        value={variant.sizes[0]?.percentage || ''}
+                        onChange={(e) => updateSize(colorIdx, 0, 'percentage', e.target.value)}
+                        className="border p-1.5 rounded w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Final Price</label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={getDiscountedPrice(variant.sizes[0]) || (variant.sizes[0]?.price ? Number(variant.sizes[0].price).toFixed(2) : '')}
+                        placeholder="—"
+                        className="border p-1.5 rounded w-full bg-gray-100 text-green-700 font-semibold"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Size Table */}
+            {(collectionMode === 'sizeColor' || collectionMode === 'sizeOnly') && (
+            <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -882,6 +1013,8 @@ export default function AddProduct() {
             >
               + Add Size
             </button>
+            </>
+            )}
           </div>
         ))}
 

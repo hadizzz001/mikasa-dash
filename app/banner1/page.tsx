@@ -46,11 +46,15 @@ const ManageBanner1 = () => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
 
+    // Only overwrite a side if a new image was uploaded; otherwise keep the existing one
+    const finalMobile = imgMobile.length > 0 ? imgMobile : (banner?.imgMobile || []);
+    const finalPc = imgPc.length > 0 ? imgPc : (banner?.imgPc || []);
+
     try {
       const res = await fetch(`/api/banner1?id=${bannerId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ img: [], imgMobile, imgPc }),
+        body: JSON.stringify({ img: [], imgMobile: finalMobile, imgPc: finalPc }),
       });
 
       if (res.ok) {
@@ -80,7 +84,7 @@ const ManageBanner1 = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">Update Banner</h1>
+      <h1 className="text-2xl font-bold mb-6">Update Quote Banner</h1>
 
       <form onSubmit={handleEditSubmit} className="space-y-8">
         {/* Mobile Upload */}
