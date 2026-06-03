@@ -104,6 +104,11 @@ export default function Sidebar() {
                 Orders
               </a>
             </li>
+            <li>
+              <a href="/api/backup" style={{ color: "white", textDecoration: "none" }} download>
+                Backup
+              </a>
+            </li>
             {/* <li>
               <a href="/note" style={{ color: "white", textDecoration: "none" }}>
                 Notification
