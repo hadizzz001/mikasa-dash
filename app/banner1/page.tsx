@@ -90,14 +90,12 @@ const ManageBanner1 = () => {
         {/* Mobile Upload */}
         <div className="border rounded-lg p-4 bg-gray-50">
           <h2 className="text-lg font-semibold mb-1">📱 Mobile Banner</h2>
-          <p className="text-sm text-gray-500 mb-3">Recommended size: 400 × 800 px</p>
           <Upload onFilesUpload={handleMobileImgChange} />
         </div>
 
         {/* PC Upload */}
         <div className="border rounded-lg p-4 bg-gray-50">
           <h2 className="text-lg font-semibold mb-1">🖥️ PC Banner</h2>
-          <p className="text-sm text-gray-500 mb-3">Recommended size: 1500 × 700 px</p>
           <Upload onFilesUpload={handlePcImgChange} />
         </div>
 
