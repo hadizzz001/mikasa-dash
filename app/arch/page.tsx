@@ -200,15 +200,28 @@ const fetchProducts = async () => {
     if (Array.isArray(data.userInfo)) {
       for (const item of data.userInfo) {
 
+        // Skip products that are not stock-tracked (nothing was ever deducted).
+        if (item.stockEnabled === false) continue;
 
         if (item.type === "single") {
-          // Single product, no colors or sizes
+          // Single product, no colors or sizes: quantity is stored in product.stock
           await fetch(`api/stock3`, {
             method: "PATCH",
             headers: {
               'Content-Type': 'text/plain',
             },
             body: `${item._id || item.id},${item.quantity}`,
+          });
+
+        } else {
+          // Collection (size+color, color only, or size only):
+          // quantity always lives in color[].sizes[].qty -> restore via stock5
+          await fetch(`api/stock5`, {
+            method: "PATCH",
+            headers: {
+              'Content-Type': 'text/plain',
+            },
+            body: `${item._id || item.id},${item.quantity},${item.selectedColor ?? ''},${item.selectedSize ?? ''}`,
           });
 
         }

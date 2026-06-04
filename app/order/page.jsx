@@ -361,14 +361,29 @@ const page = () => {
     if (!confirmDelete) return;
 
 
-    if (item.type === "single") {
-      await fetch(`api/stock3`, {
-        method: "PATCH",
-        headers: {
-          'Content-Type': 'text/plain',
-        },
-        body: `${item._id || item.id},${item.quantity}`,
-      });
+    // Restore stock for the removed item, mirroring how it was deducted on add.
+    // Skip products that are not stock-tracked (nothing was ever deducted).
+    if (item.stockEnabled !== false) {
+      if (item.type === "single") {
+        // Single product: quantity is stored in product.stock
+        await fetch(`api/stock3`, {
+          method: "PATCH",
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: `${item._id || item.id},${item.quantity}`,
+        });
+      } else {
+        // Collection (size+color, color only, or size only):
+        // quantity always lives in color[].sizes[].qty -> restore via stock5
+        await fetch(`api/stock5`, {
+          method: "PATCH",
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: `${item._id || item.id},${item.quantity},${item.selectedColor ?? ''},${item.selectedSize ?? ''}`,
+        });
+      }
     }
 
 

@@ -7,6 +7,10 @@ export async function PATCH(request, { params }) {
   const [id, qtyStr, color, size] = bodyText.split(',');
   const quantity = parseInt(qtyStr, 10);
 
+  if (!id || Number.isNaN(quantity)) {
+    return new Response(JSON.stringify({ error: 'Invalid product id or quantity' }), { status: 400 });
+  }
+
   try {
     const product = await prisma.product.findUnique({ where: { id } });
     if (!product) return new Response(JSON.stringify({ error: 'Product not found' }), { status: 404 });
@@ -22,7 +26,8 @@ export async function PATCH(request, { params }) {
       return new Response(JSON.stringify({ error: 'Size not found' }), { status: 400 });
     }
 
-    sizes[sizeIndex].qty += quantity;  // <-- changed from -= to +=
+    // Coerce existing qty to a number first so a string value (e.g. "5") is not concatenated.
+    sizes[sizeIndex].qty = (Number(sizes[sizeIndex].qty) || 0) + quantity;
     colorList[colorIndex].sizes = sizes;
 
     const updated = await prisma.product.update({
