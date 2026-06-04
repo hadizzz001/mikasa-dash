@@ -5,8 +5,46 @@ import Upload from '../components/Upload';
 import dynamic from 'next/dynamic';
 import 'react-quill/dist/quill.snow.css';
 import ExportToExcel from '../components/ExportToExcel';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  horizontalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+
+// Sortable image/video thumbnail for drag reorder
+function SortableImageItem({ id, url, onRemove }: { id: string; url: string; onRemove: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    cursor: 'grab',
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="relative" {...attributes} {...listeners}>
+      {/\.(mp4|webm|ogg)$/i.test(url) ? (
+        <video src={url} className="w-20 h-20 object-cover rounded border" />
+      ) : (
+        <img src={url} alt="" className="w-20 h-20 object-cover rounded border" />
+      )}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onRemove(); }}
+        className="absolute -top-1 -right-1 bg-red-500 text-white w-5 h-5 rounded-full text-xs flex items-center justify-center"
+      >✕</button>
+    </div>
+  );
+}
 
 export default function ProductTable() {
   const [products, setProducts] = useState([]);
@@ -367,6 +405,7 @@ function EditProductForm({ product, onCancel, onSave }) {
   const [description, setDescription] = useState(product.description || '');
   const [img, setImg] = useState(product.img || []);
   const [sale, setSale] = useState(product.sale === "yes");
+  const [arrival, setArrival] = useState(product.arrival === "yes");
   const [noPrice, setNoPrice] = useState(product.noprice === "yes");
   const [includeTax] = useState(product.tax === "yes");
   const [stockEnabled, setStockEnabled] = useState(product.stockEnabled ?? product.stock != null);
@@ -391,6 +430,8 @@ function EditProductForm({ product, onCancel, onSave }) {
     product.type === 'collection' && Array.isArray(product.color) && product.color.length > 0
       ? product.color.map((v) => ({
           ...v,
+          colorImg: v.colorImg || '',
+          images: Array.isArray(v.images) ? v.images : [],
           sizes: (v.sizes || []).map((sz) => {
             // Back-compat: older records stored % in `discount`. Detect: discount <= 100 and no percentage field => treat as %.
             const hasPercentage = sz.percentage !== undefined && sz.percentage !== null && sz.percentage !== '';
@@ -408,7 +449,7 @@ function EditProductForm({ product, onCancel, onSave }) {
             };
           }),
         }))
-      : [{ color: '', colorCode: '', sizes: [{ size: '', qty: '', price: '', percentage: '', discount: '' }] }]
+      : [{ color: '', colorCode: '', colorImg: '', images: [], sizes: [{ size: '', qty: '', price: '', percentage: '', discount: '' }] }]
   );
 
   // Specs
@@ -425,29 +466,100 @@ function EditProductForm({ product, onCancel, onSave }) {
   const updateSpecItem = (gi, si, field, val) => { const u = [...specs]; u[gi].items[si][field] = val; setSpecs(u); };
 
   // --- Variant Helpers ---
-  const addColor = () => setVariants([...variants, { color: '', colorCode: '', sizes: [{ size: '', qty: '', price: '', percentage: '', discount: '' }] }]);
+  const addColor = () => setVariants([...variants, { color: '', colorCode: '', colorImg: '', images: [], sizes: [{ size: '', qty: '', price: '', percentage: '', discount: '' }] }]);
   const removeColor = (i) => setVariants(variants.filter((_, idx) => idx !== i));
   const changeCollectionMode = (mode) => {
     setCollectionMode(mode);
     setVariants(prev => {
       if (mode === 'sizeOnly') {
-        const base = prev[0] || { color: '', colorCode: '', sizes: [] };
+        const base = prev[0] || { color: '', colorCode: '', colorImg: '', images: [], sizes: [] };
         return [{
           ...base,
-          color: '', colorCode: '',
+          color: '', colorCode: '', colorImg: '',
+          images: base.images || [],
           sizes: base.sizes && base.sizes.length ? base.sizes : [{ size: '', qty: '', price: '', percentage: '', discount: '' }],
         }];
       }
       if (mode === 'colorOnly') {
         return prev.map(v => ({ ...v, sizes: [v.sizes?.[0] || { size: '', qty: '', price: '', percentage: '', discount: '' }] }));
       }
-      return prev.length ? prev : [{ color: '', colorCode: '', sizes: [{ size: '', qty: '', price: '', percentage: '', discount: '' }] }];
+      return prev.length ? prev : [{ color: '', colorCode: '', colorImg: '', images: [], sizes: [{ size: '', qty: '', price: '', percentage: '', discount: '' }] }];
     });
   };
   const selectColor = (i, name) => {
     if (variants.some((v, idx) => idx !== i && v.color === name)) { alert(`Color "${name}" is already added.`); return; }
     const u = [...variants]; const db = dbColors.find(c => c.name === name);
-    u[i].color = name; u[i].colorCode = db?.code || ''; setVariants(u);
+    u[i].color = name; u[i].colorCode = db?.code || ''; u[i].colorImg = (db?.img && db.img[0]) || ''; setVariants(u);
+  };
+
+  // --- Cloudinary Upload Helper ---
+  const uploadToCloudinary = async (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', 'ml_default');
+    const isVideo = file.type.startsWith('video/');
+    const url = isVideo
+      ? 'https://api.cloudinary.com/v1_1/dh2c4clxo/video/upload'
+      : 'https://api.cloudinary.com/v1_1/dh2c4clxo/image/upload';
+    try {
+      const res = await fetch(url, { method: 'POST', body: fd });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.secure_url;
+    } catch (err) {
+      console.error('Upload error:', err);
+      return null;
+    }
+  };
+
+  // Upload product images for a specific color
+  const handleColorImagesUpload = async (colorIdx, files) => {
+    const maxAllowed = 12;
+    const current = variants[colorIdx].images?.length || 0;
+    const remaining = maxAllowed - current;
+    const filesToUpload = Array.from(files).slice(0, remaining);
+    for (const file of filesToUpload) {
+      const url = await uploadToCloudinary(file);
+      if (url) {
+        setVariants(prev => {
+          const updated = [...prev];
+          updated[colorIdx] = { ...updated[colorIdx], images: [...(updated[colorIdx].images || []), url] };
+          return updated;
+        });
+      }
+    }
+  };
+
+  // Remove a product image from a color
+  const removeColorImage = (colorIdx, imgIdx) => {
+    const updated = [...variants];
+    updated[colorIdx].images = updated[colorIdx].images.filter((_, i) => i !== imgIdx);
+    setVariants(updated);
+  };
+
+  // Drag reorder for per-color product images
+  const dndSensors = useSensors(useSensor(PointerSensor));
+  const handleColorImageDragEnd = (colorIdx, event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setVariants(prev => {
+      const updated = [...prev];
+      const images = [...updated[colorIdx].images];
+      const oldIndex = images.indexOf(active.id);
+      const newIndex = images.indexOf(over.id);
+      updated[colorIdx] = { ...updated[colorIdx], images: arrayMove(images, oldIndex, newIndex) };
+      return updated;
+    });
+  };
+
+  // Upload custom color swatch image override
+  const handleColorImgOverride = async (colorIdx, file) => {
+    const url = await uploadToCloudinary(file);
+    if (url) {
+      const updated = [...variants];
+      updated[colorIdx].colorImg = url;
+      setVariants(updated);
+    }
   };
   const addSize = (ci) => { const u = [...variants]; u[ci].sizes.push({ size: '', qty: '', price: '', percentage: '', discount: '' }); setVariants(u); };
   const removeSize = (ci, si) => { const u = [...variants]; u[ci].sizes = u[ci].sizes.filter((_, i) => i !== si); setVariants(u); };
@@ -537,18 +649,25 @@ function EditProductForm({ product, onCancel, onSave }) {
       }
     }
 
+    // Collect all images from all color variants for the product img field
+    const variantImages = variants.flatMap(v => v.images || []);
+    const productImages = productType === 'collection'
+      ? (variantImages.length > 0 ? variantImages : img)
+      : img;
+
     onSave({
       ...product,
       title,
       code,
       description,
       sale: sale ? "yes" : "no",
+      arrival: arrival ? "yes" : "no",
       noprice: noPrice ? "yes" : "no",
       tax: includeTax ? "yes" : "no",
       price: computedPrice,
       discount: computedDiscount,
       percentage: percentageVal,
-      img,
+      img: productImages,
       factory: selectedFactory,
       type: productType,
       stock: computedStock,
@@ -583,10 +702,14 @@ function EditProductForm({ product, onCancel, onSave }) {
       </select>
 
       {/* Checkboxes */}
-      <div className="flex gap-6 my-4">
+      <div className="flex gap-6 my-4 flex-wrap">
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={sale} onChange={(e) => setSale(e.target.checked)} />
-          <span>Sale</span>
+          <span>Best Seller</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={arrival} onChange={(e) => setArrival(e.target.checked)} />
+          <span>New Arrival</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={noPrice} onChange={(e) => setNoPrice(e.target.checked)} />
@@ -676,9 +799,15 @@ function EditProductForm({ product, onCancel, onSave }) {
             <div key={colorIdx} className="border rounded-lg p-3 mb-3 bg-gray-50">
               {collectionMode !== 'sizeOnly' && (
               <div className="flex items-center gap-2 mb-3">
-                {variant.colorCode && (
+                {variant.colorImg ? (
+                  <img
+                    src={variant.colorImg}
+                    alt={variant.color}
+                    className="w-8 h-8 rounded-full border border-gray-300 flex-shrink-0 object-cover"
+                  />
+                ) : variant.colorCode ? (
                   <div style={{ backgroundColor: variant.colorCode }} className="w-8 h-8 rounded-full border border-gray-300 flex-shrink-0" />
-                )}
+                ) : null}
                 <select value={variant.color} onChange={(e) => selectColor(colorIdx, e.target.value)} className="border p-2 rounded flex-1 font-semibold" required>
                   <option value="" disabled>Select a Color</option>
                   {dbColors.filter(c => c.name === variant.color || !variants.some(v => v.color === c.name)).map((c) => (
@@ -688,6 +817,59 @@ function EditProductForm({ product, onCancel, onSave }) {
                 {variants.length > 1 && (
                   <button type="button" onClick={() => removeColor(colorIdx)} className="bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600">✕</button>
                 )}
+              </div>
+              )}
+
+              {/* Product Images for this color */}
+              <div className="mb-3">
+                <label className="block text-xs font-medium mb-1">📷 {collectionMode === 'sizeOnly' ? 'Product Images' : 'Product Images for this color'} (max 12)</label>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,video/*"
+                  onChange={(e) => { if (e.target.files) handleColorImagesUpload(colorIdx, e.target.files); e.target.value = ''; }}
+                  className="border p-1.5 text-sm w-full mb-2"
+                />
+                {variant.images && variant.images.length > 0 && (
+                  <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(e) => handleColorImageDragEnd(colorIdx, e)}>
+                    <SortableContext items={variant.images} strategy={horizontalListSortingStrategy}>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {variant.images.map((imgUrl, imgIdx) => (
+                          <SortableImageItem
+                            key={imgUrl}
+                            id={imgUrl}
+                            url={imgUrl}
+                            onRemove={() => removeColorImage(colorIdx, imgIdx)}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                )}
+              </div>
+
+              {/* Optional custom color swatch image override */}
+              {collectionMode !== 'sizeOnly' && (
+              <div className="mb-3">
+                <label className="block text-xs font-medium mb-1">🎨 Custom Color Image (optional override)</label>
+                <div className="flex items-center gap-3">
+                  {variant.colorImg && (
+                    <div className="relative">
+                      <img src={variant.colorImg} alt="Color" className="w-10 h-10 object-cover rounded-full border" />
+                      <button
+                        type="button"
+                        onClick={() => { const updated = [...variants]; updated[colorIdx].colorImg = ''; setVariants(updated); }}
+                        className="absolute -top-1 -right-1 bg-red-500 text-white w-4 h-4 rounded-full text-[10px] flex items-center justify-center"
+                      >✕</button>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleColorImgOverride(colorIdx, f); e.target.value = ''; }}
+                    className="border p-1 text-sm"
+                  />
+                </div>
               </div>
               )}
 
@@ -815,12 +997,17 @@ function EditProductForm({ product, onCancel, onSave }) {
         ))}
       </div>
 
+      {/* ===== IMAGE UPLOAD FOR SINGLE PRODUCT ===== */}
+      {productType === 'single' && (
+        <div className="mb-4">
+          <Upload onFilesUpload={(url) => setImg(url)} />
+          <span className="text-sm text-gray-500">Max 12 images</span>
+        </div>
+      )}
+
       {/* Description */}
       <label className="block text-sm font-bold mb-2">Description</label>
       <ReactQuill value={description} onChange={setDescription} className="mb-4" theme="snow" placeholder="Write your product description here..." />
-
-      {/* Image Upload */}
-      <Upload onFilesUpload={(url) => setImg(url)} />
 
       {/* Buttons */}
       <div className="flex gap-2 mt-4">
