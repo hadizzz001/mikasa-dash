@@ -15,7 +15,7 @@ model Product {
   price        String?
   discount     String?
   img          String[]
-  category     String?
+  category     String[]
   stock        String?
   stockEnabled Boolean? @default(true)
   color        Json?

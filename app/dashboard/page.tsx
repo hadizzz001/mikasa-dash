@@ -130,11 +130,11 @@ export default function ProductTable() {
     return product.title.toLowerCase().includes(searchQuery.toLowerCase());
   };
 
-  // Filter products by selected category
+  // Filter products by selected category (category is now an array)
   const filterByCategory = (product) => {
-    const isFilteredByCategory = selectedCategory ? product.category === selectedCategory : true;
-
-    return isFilteredByCategory;
+    if (!selectedCategory) return true;
+    if (Array.isArray(product.category)) return product.category.includes(selectedCategory);
+    return product.category === selectedCategory;
   };
 
   // Apply both search and category filters
@@ -419,7 +419,20 @@ function EditProductForm({ product, onCancel, onSave }) {
 
   // Dropdowns
   const [factories, setFactories] = useState([]);
-  const [selectedFactory, setSelectedFactory] = useState(product.factory || '');
+  // an item can belong to many categories
+  const [selectedCategories, setSelectedCategories] = useState(
+    Array.isArray(product.category) && product.category.length > 0
+      ? product.category
+      : (typeof product.category === 'string' && product.category
+          ? [product.category]
+          : (product.factory ? [product.factory] : []))
+  );
+
+  const toggleCategory = (name) => {
+    setSelectedCategories((prev) =>
+      prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name]
+    );
+  };
 
   // DB colors & sizes
   const [dbColors, setDbColors] = useState([]);
@@ -599,6 +612,8 @@ function EditProductForm({ product, onCancel, onSave }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    if (selectedCategories.length === 0) { alert('Please select at least one category'); return; }
+
     let computedPrice, computedStock, computedDiscount = null, colorData = null, percentageVal = null;
 
     if (productType === 'collection') {
@@ -668,7 +683,8 @@ function EditProductForm({ product, onCancel, onSave }) {
       discount: computedDiscount,
       percentage: percentageVal,
       img: productImages,
-      factory: selectedFactory,
+      category: selectedCategories,
+      factory: selectedCategories[0] || '',
       type: productType,
       stock: computedStock,
       stockEnabled,
@@ -696,10 +712,26 @@ function EditProductForm({ product, onCancel, onSave }) {
 
       {/* Category */}
       <label className="block text-sm font-bold mb-1">Category</label>
-      <select className="w-full p-2 border mb-4" value={selectedFactory} onChange={(e) => setSelectedFactory(e.target.value)} required>
-        <option value="" disabled>Select Category</option>
-        {factories.map((cat) => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
-      </select>
+      <p className="text-xs text-gray-500 mb-2">Select one or more categories.</p>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {factories.map((cat) => {
+          const isSelected = selectedCategories.includes(cat.name);
+          return (
+            <button
+              type="button"
+              key={cat.id}
+              onClick={() => toggleCategory(cat.name)}
+              className={`px-3 py-1 rounded border text-xs transition-colors ${
+                isSelected
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+              }`}
+            >
+              {isSelected ? '✓ ' : ''}{cat.name}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Checkboxes */}
       <div className="flex gap-6 my-4 flex-wrap">

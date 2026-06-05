@@ -91,9 +91,9 @@ export default function AddProduct() {
   const [stockEnabled, setStockEnabled] = useState(false);
   const [img, setImg] = useState(['']);
   const [categoryOptions, setCategoryOptions] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('');
   const [factoryOptions, setFactoryOptions] = useState([]);
-  const [selectedFactory, setSelectedFactory] = useState('');
+  // an item can belong to many categories
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [code, setCode] = useState('');
   const [sale, setSale] = useState(false);
   const [arrival, setArrival] = useState(false);
@@ -156,6 +156,13 @@ export default function AddProduct() {
 
   const removeColor = (colorIdx: number) => {
     setVariants(variants.filter((_, i) => i !== colorIdx));
+  };
+
+  // Toggle a category on/off (an item can belong to many categories)
+  const toggleCategory = (name: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name]
+    );
   };
 
   // Switch between collection modes (sizeColor | sizeOnly | colorOnly)
@@ -332,7 +339,6 @@ export default function AddProduct() {
         if (response.ok) {
           const data = await response.json();
           setCategoryOptions(data);
-          setSelectedCategory('');
         } else {
           console.error('Failed to fetch categories');
         }
@@ -350,7 +356,6 @@ export default function AddProduct() {
         if (response.ok) {
           const data = await response.json();
           setFactoryOptions(data);
-          setSelectedFactory('');
         } else {
           console.error('Failed to fetch categories');
         }
@@ -398,6 +403,11 @@ export default function AddProduct() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (selectedCategories.length === 0) {
+      alert('Please select at least one category');
+      return;
+    }
 
     // Validate variants only for collection type
     if (productType === 'collection') {
@@ -506,7 +516,8 @@ export default function AddProduct() {
               return minP === maxP ? String(minP) : `${minP}-${maxP}`;
             })(),
       img: productImages,
-      factory: selectedFactory,
+      category: selectedCategories,
+      factory: selectedCategories[0] || '',
       type: productType,
       stock: computedStock,
       stockEnabled,
@@ -569,19 +580,26 @@ export default function AddProduct() {
       />
 
       <label className="block text-lg font-bold mb-2">Category</label>
-      <select
-        value={selectedFactory}
-        onChange={(e) => setSelectedFactory(e.target.value)}
-        className="w-full border p-2 mb-4"
-        required
-      >
-        <option value="" disabled>Select a Category</option>
-        {factoryOptions.map((category) => (
-          <option key={category.id} value={category.name}>
-            {category.name}
-          </option>
-        ))}
-      </select>
+      <p className="text-sm text-gray-500 mb-2">Select one or more categories.</p>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {factoryOptions.map((category) => {
+          const isSelected = selectedCategories.includes(category.name);
+          return (
+            <button
+              type="button"
+              key={category.id}
+              onClick={() => toggleCategory(category.name)}
+              className={`px-3 py-2 rounded border text-sm transition-colors ${
+                isSelected
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+              }`}
+            >
+              {isSelected ? '✓ ' : ''}{category.name}
+            </button>
+          );
+        })}
+      </div>
 
       <div className="flex gap-6 my-4">
         <label className="flex items-center gap-2 cursor-pointer">

@@ -2,6 +2,7 @@
 "use client"
 import Link from "next/link";
 import ExportButton from "../components/ExportExcel";
+import { generateInvoice } from "../utils/generateInvoice";
 import { useState, useEffect } from "react";
 import { redirect, useRouter } from 'next/navigation';
 
@@ -479,6 +480,13 @@ try {
                     } // Disable if no receipt or not submitted
                   >
                     {post.fulfillment ? "Fulfilled" : "Unfulfilled"}
+                  </button>
+
+                  <button
+                    className="bg-emerald-600 text-white p-1 w-16 h-8"
+                    onClick={() => generateInvoice(post)}
+                  >
+                    Invoice
                   </button>
 
 

@@ -31,6 +31,11 @@ export async function PATCH(request, { params }) {
   const normalizedStock =
     type === 'collection' ? null : (stockEnabled === false ? null : stock ?? null);
 
+  // category can be many values: always store it as an array of strings
+  const categoryArray = Array.isArray(category)
+    ? category.filter(Boolean)
+    : (category ? [category] : []);
+
   console.log("imgs are: ", img);
   
 
@@ -44,7 +49,7 @@ export async function PATCH(request, { params }) {
         price,
         discount,
         img,
-        category, 
+        category: categoryArray, 
         stock: normalizedStock,
         stockEnabled: stockEnabled ?? stock != null,
         arrival ,

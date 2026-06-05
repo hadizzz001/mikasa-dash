@@ -32,6 +32,11 @@ export async function POST(req) {
     const normalizedStock =
       type === 'collection' ? null : (stockEnabled === false ? null : stock ?? null);
 
+    // category can be many values: always store it as an array of strings
+    const categoryArray = Array.isArray(category)
+      ? category.filter(Boolean)
+      : (category ? [category] : []);
+
     console.log("body are: ", body);
 
     const product = await prisma.product.create({
@@ -41,7 +46,7 @@ export async function POST(req) {
         price,
         discount,
         img,
-        category,
+        category: categoryArray,
         stock: normalizedStock,
         stockEnabled: stockEnabled ?? stock != null,
         arrival,
