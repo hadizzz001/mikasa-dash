@@ -144,3 +144,14 @@ model Size {
   sort Int?
 }
 
+model About {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  description String?
+  img         String[]
+}
+
+model Privacy {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  description String?
+}
+

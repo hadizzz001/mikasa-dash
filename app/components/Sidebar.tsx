@@ -100,6 +100,16 @@ export default function Sidebar() {
               </a>
             </li>
             <li>
+              <a href="/about" style={{ color: "white", textDecoration: "none" }}>
+                About
+              </a>
+            </li>
+            <li>
+              <a href="/privacy" style={{ color: "white", textDecoration: "none" }}>
+                Privacy Policy
+              </a>
+            </li>
+            <li>
               <a href="/reservation" style={{ color: "white", textDecoration: "none" }}>
                 Orders
               </a>

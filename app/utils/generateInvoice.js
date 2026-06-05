@@ -10,6 +10,10 @@ const COMPANY = {
   phone: "",
 };
 
+// Logo shown at the top-left of the invoice (replaces the company name title).
+const LOGO_URL =
+  "https://res.cloudinary.com/dh2c4clxo/image/upload/v1779535697/WhatsApp_Image_2026-05-23_at_13.45.50-removebg-preview_1_adulnl.png";
+
 // ---- Pricing helpers (kept in sync with the reservation page) -----------
 const toNumber = (value) => {
   const parsed = Number(value);
@@ -67,6 +71,31 @@ const resolveLineItemUnitPrice = (item) => {
 };
 
 const money = (value) => `$${toNumber(value).toFixed(2)}`;
+
+// ---- Logo helpers -------------------------------------------------------
+// Fetch a (possibly cross-origin) image and convert it to a base64 data URL
+// so jsPDF can embed it reliably.
+const loadImageAsDataURL = async (url) => {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.error("Failed to load logo image:", err);
+    return null;
+  }
+};
+
+// Scale a width/height pair to fit within a bounding box, preserving ratio.
+const fitWithin = (imgW, imgH, maxW, maxH) => {
+  const ratio = Math.min(maxW / imgW, maxH / imgH);
+  return { width: imgW * ratio, height: imgH * ratio };
+};
 
 // ---- Main entry point ---------------------------------------------------
 /**
@@ -127,11 +156,22 @@ export async function generateInvoice(order) {
   const muted = [107, 114, 128]; // gray-500
   const line = [229, 231, 235]; // gray-200
 
-  // --- Header: company name (left) + INVOICE (right) ---
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(24);
-  doc.setTextColor(...dark);
-  doc.text(COMPANY.name, marginL, 22);
+  // --- Header: logo (left) + INVOICE (right) ---
+  const logoDataUrl = await loadImageAsDataURL(LOGO_URL);
+  if (logoDataUrl) {
+    try {
+      const props = doc.getImageProperties(logoDataUrl);
+      const { width: logoW, height: logoH } = fitWithin(
+        props.width,
+        props.height,
+        40, // max width in mm
+        24 // max height in mm
+      );
+      doc.addImage(logoDataUrl, "PNG", marginL, 10, logoW, logoH);
+    } catch (err) {
+      console.error("Failed to render logo on invoice:", err);
+    }
+  }
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
