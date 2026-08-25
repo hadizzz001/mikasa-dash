@@ -20,12 +20,12 @@ const CATEGORIES = [
 ];
 
 const IMAGES = [
-  'https://res.cloudinary.com/dh2c4clxo/image/upload/v1780502438/Minimal_Bowl_grande-removebg-preview_copy_bkpjyu.png',
-  'https://res.cloudinary.com/dh2c4clxo/image/upload/v1780502439/Minimal_Bowl_grande-removebg-preview_qmxkyx.png',
-  'https://res.cloudinary.com/dh2c4clxo/image/upload/v1780502456/entry_ci8bs1.jpg',
-  'https://res.cloudinary.com/dh2c4clxo/image/upload/v1780502458/furnt_aguwjf.jpg',
-  'https://res.cloudinary.com/dh2c4clxo/image/upload/v1780502337/Minimal_Bowl_grande-removebg-preview_copy_pusscl.png',
-  'https://res.cloudinary.com/dh2c4clxo/image/upload/v1780502338/Minimal_Bowl_grande-removebg-preview_zmzdwp.png',
+  'https://res.cloudinary.com/tynkb5kn/image/upload/v1780502438/Minimal_Bowl_grande-removebg-preview_copy_bkpjyu.png',
+  'https://res.cloudinary.com/tynkb5kn/image/upload/v1780502439/Minimal_Bowl_grande-removebg-preview_qmxkyx.png',
+  'https://res.cloudinary.com/tynkb5kn/image/upload/v1780502456/entry_ci8bs1.jpg',
+  'https://res.cloudinary.com/tynkb5kn/image/upload/v1780502458/furnt_aguwjf.jpg',
+  'https://res.cloudinary.com/tynkb5kn/image/upload/v1780502337/Minimal_Bowl_grande-removebg-preview_copy_pusscl.png',
+  'https://res.cloudinary.com/tynkb5kn/image/upload/v1780502338/Minimal_Bowl_grande-removebg-preview_zmzdwp.png',
 ];
 
 // pick `n` images starting at an offset (wraps around)

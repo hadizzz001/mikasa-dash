@@ -17,7 +17,7 @@ const ManageColors = () => {
     fd.append('file', file);
     fd.append('upload_preset', 'ml_default');
     try {
-      const res = await fetch('https://api.cloudinary.com/v1_1/dh2c4clxo/image/upload', { method: 'POST', body: fd });
+      const res = await fetch('https://api.cloudinary.com/v1_1/tynkb5kn/image/upload', { method: 'POST', body: fd });
       if (!res.ok) return null;
       const data = await res.json();
       return data.secure_url;

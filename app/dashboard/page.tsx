@@ -512,8 +512,8 @@ function EditProductForm({ product, onCancel, onSave }) {
     fd.append('upload_preset', 'ml_default');
     const isVideo = file.type.startsWith('video/');
     const url = isVideo
-      ? 'https://api.cloudinary.com/v1_1/dh2c4clxo/video/upload'
-      : 'https://api.cloudinary.com/v1_1/dh2c4clxo/image/upload';
+      ? 'https://api.cloudinary.com/v1_1/tynkb5kn/video/upload'
+      : 'https://api.cloudinary.com/v1_1/tynkb5kn/image/upload';
     try {
       const res = await fetch(url, { method: 'POST', body: fd });
       if (!res.ok) return null;

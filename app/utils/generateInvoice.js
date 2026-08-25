@@ -12,7 +12,7 @@ const COMPANY = {
 
 // Logo shown at the top-left of the invoice (replaces the company name title).
 const LOGO_URL =
-  "https://res.cloudinary.com/dh2c4clxo/image/upload/v1779535697/WhatsApp_Image_2026-05-23_at_13.45.50-removebg-preview_1_adulnl.png";
+  "https://res.cloudinary.com/tynkb5kn/image/upload/v1787659894/bea553.png";
 
 // ---- Pricing helpers (kept in sync with the reservation page) -----------
 const toNumber = (value) => {

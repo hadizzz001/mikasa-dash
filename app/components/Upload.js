@@ -64,8 +64,8 @@ const Upload = ({ onFilesUpload }) => {
 
       const isVideo = file.type.startsWith('video/');
       const uploadUrl = isVideo
-        ? 'https://api.cloudinary.com/v1_1/dh2c4clxo/video/upload'
-        : 'https://api.cloudinary.com/v1_1/dh2c4clxo/image/upload';
+        ? 'https://api.cloudinary.com/v1_1/tynkb5kn/video/upload'
+        : 'https://api.cloudinary.com/v1_1/tynkb5kn/image/upload';
 
       try {
         const res = await fetch(uploadUrl, { method: 'POST', body: formData });
