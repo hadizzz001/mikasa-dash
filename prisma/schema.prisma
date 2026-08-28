@@ -155,3 +155,8 @@ model Privacy {
   description String?
 }
 
+model DeliveryFee {
+  id  String @id @default(auto()) @map("_id") @db.ObjectId
+  fee String
+}
+

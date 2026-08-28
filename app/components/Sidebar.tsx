@@ -100,6 +100,11 @@ export default function Sidebar() {
               </a>
             </li>
             <li>
+              <a href="/delivery-fee" style={{ color: "white", textDecoration: "none" }}>
+                Delivery Fee
+              </a>
+            </li>
+            <li>
               <a href="/about" style={{ color: "white", textDecoration: "none" }}>
                 About
               </a>
